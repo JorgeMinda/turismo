@@ -3,11 +3,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes.js";
 import cookieParser from "cookie-parser";
+
 dotenv.config();
 
 const app = express();
 
-// 🧾 Middleware para mostrar todas las peticiones (antes de las rutas)
+// 🧾 Middleware para mostrar todas las peticiones (ANTES DE TODO)
 app.use((req, res, next) => {
   console.log(`👉 ${req.method} ${req.url}`);
   next();
@@ -16,19 +17,24 @@ app.use((req, res, next) => {
 // 🌐 Configuración de CORS
 app.use(cors({
   origin: [
-    "http://localhost:8100",     // navegador (ionic serve)
-    "http://192.168.1.17:8100",  // dispositivo físico Android
-    "http://10.0.2.2:8100"       // emulador Android Studio
+    "http://localhost:8100",
+    "http://192.168.1.2:8100",
+    "http://10.0.2.2:8100",
+    "capacitor://localhost",
+    "ionic://localhost",
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
-// 📦 Middleware para parsear JSON en peticiones
-app.use(express.json());
+app.options("*", cors());
 
-// 🚀 Rutas principales del backend
+// 📦 Middleware global
+app.use(express.json());
+app.use(cookieParser());
+
+// 🚀 Rutas API
 app.use("/api", authRoutes);
 
 // ⚙️ Puerto
@@ -38,8 +44,6 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Servidor backend corriendo en:
   👉 Local:     http://localhost:${PORT}
-  👉 Red local: http://192.168.1.17:${PORT}
+  👉 Red local: http://192.168.1.2:${PORT}
   `);
-  
-app.use(cookieParser());
 });

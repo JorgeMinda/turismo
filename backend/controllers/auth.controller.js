@@ -1,5 +1,6 @@
 // controllers/auth.controller.js
-import pool from "../db.js";
+import { pool } from "../db/connection.js";
+
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -36,12 +37,16 @@ export const registrarUsuario = async (req, res) => {
       `INSERT INTO usuarios 
        (nombre, email, password, telefono, ciudad, transporte, edad, genero, intereses)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-       RETURNING id, nombre, email`,
+       RETURNING id, nombre, email, transporte`,
       [nombre, email, hashedPassword, telefono, ciudad, transporte, edad, genero, intereses]
     );
 
     const nuevoUsuario = result.rows[0];
-    res.status(201).json({ message: "Usuario registrado correctamente", usuario: nuevoUsuario });
+    res.status(201).json({ 
+      message: "Usuario registrado correctamente", 
+      usuario: nuevoUsuario 
+    });
+
   } catch (error) {
     console.error("❌ Error al registrar:", error);
     res.status(500).json({ error: "Error al registrar usuario" });
@@ -53,12 +58,20 @@ export const loginUsuario = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const result = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
+    // 🔥 CORREGIDO → AHORA INCLUYE PASSWORD
+    const result = await pool.query(`
+      SELECT id, nombre, email, password, transporte, telefono, ciudad, edad, genero, intereses
+      FROM usuarios
+      WHERE email = $1
+    `, [email]);
+    
     if (result.rows.length === 0) {
       return res.status(401).json({ error: "Usuario no encontrado" });
     }
 
     const user = result.rows[0];
+
+    // 🔥 VALIDACIÓN CORRECTA
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       return res.status(401).json({ error: "Contraseña incorrecta" });
@@ -68,10 +81,13 @@ export const loginUsuario = async (req, res) => {
     const accessToken = generarAccessToken(user);
     const refreshToken = generarRefreshToken(user);
 
-    // Guardar refresh token opcionalmente en BD
-    await pool.query("UPDATE usuarios SET refresh_token = $1 WHERE id = $2", [refreshToken, user.id]);
+    // Guardar refresh token en BD
+    await pool.query(
+      "UPDATE usuarios SET refresh_token = $1 WHERE id = $2",
+      [refreshToken, user.id]
+    );
 
-    // Enviar cookie httpOnly (solo accesible por backend)
+    // Enviar cookie httpOnly
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -82,8 +98,19 @@ export const loginUsuario = async (req, res) => {
     res.json({
       message: "Login exitoso",
       accessToken,
-      user: { id: user.id, nombre: user.nombre, email: user.email },
+      user: {
+        id: user.id,
+        nombre: user.nombre,
+        email: user.email,
+        transporte: user.transporte,
+        telefono: user.telefono,
+        ciudad: user.ciudad,
+        edad: user.edad,
+        genero: user.genero,
+        intereses: user.intereses
+      }
     });
+
   } catch (error) {
     console.error("❌ Error en login:", error);
     res.status(500).json({ error: "Error en el servidor" });
@@ -96,7 +123,6 @@ export const refreshToken = async (req, res) => {
     const token = req.cookies.refreshToken;
     if (!token) return res.status(401).json({ error: "No hay token de refresco" });
 
-    // Verificar refresh token
     jwt.verify(token, REFRESH_SECRET, async (err, decoded) => {
       if (err) return res.status(403).json({ error: "Token inválido o expirado" });
 
@@ -106,6 +132,7 @@ export const refreshToken = async (req, res) => {
       const newAccessToken = generarAccessToken(result.rows[0]);
       res.json({ accessToken: newAccessToken });
     });
+
   } catch (error) {
     console.error("Error al refrescar token:", error);
     res.status(500).json({ error: "Error en el servidor" });
@@ -121,6 +148,7 @@ export const logoutUsuario = async (req, res) => {
       res.clearCookie("refreshToken");
     }
     res.json({ message: "Sesión cerrada correctamente" });
+
   } catch (error) {
     console.error("Error en logout:", error);
     res.status(500).json({ error: "Error al cerrar sesión" });
