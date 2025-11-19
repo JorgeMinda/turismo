@@ -28,7 +28,7 @@ app.use(cors({
   credentials: true
 }));
 
-app.use("*", cors());
+app.options("*", cors());
 
 // 📦 Middleware global
 app.use(express.json());
