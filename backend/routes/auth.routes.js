@@ -2,7 +2,7 @@
 import express from 'express';
 import { registrarUsuario, loginUsuario, refreshToken, logoutUsuario } from '../controllers/auth.controller.js';
 import { verificarToken } from '../middleware/auth.middleware.js';
-import { pool } from "../db/connection.js";
+import pool from "../db.js";
 
 
 const router = express.Router();

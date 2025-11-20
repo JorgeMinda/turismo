@@ -1,5 +1,5 @@
 // controllers/auth.controller.js
-import { pool } from "../db/connection.js";
+import pool from "../db.js";
 
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
